@@ -1,0 +1,21 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Session Functions
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+
+Resources:
+  ListDrivers:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: list_drivers.handler
+      CodeUri: ./session_functions/list_drivers
+      Environment:
+        Variables:
+          SESSION_KEY: 9205
+      Policies:
+        - AWSLambdaBasicExecutionRole
