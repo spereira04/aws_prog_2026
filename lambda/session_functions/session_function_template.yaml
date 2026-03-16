@@ -13,7 +13,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: list_drivers.handler
-      CodeUri: ./session_functions/list_drivers
+      CodeUri: ./list_drivers
       Environment:
         Variables:
           SESSION_KEY: 9205
