@@ -1,0 +1,79 @@
+{
+  "info": {
+    "_postman_id": "f64f4efa-7125-4b9e-a314-be872fd4e4d4",
+    "name": "F1 API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Drivers",
+      "id": "681e1438-6123-413a-8829-4ea4fed0b49b",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{RAPI}}.execute-api.amazonaws.com",
+            "type": "text",
+            "uuid": "3c054691-7ca8-4bd1-9f09-b1130d0db1b6"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/{{stage}}/drivers",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "{{stage}}",
+            "drivers"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Sessions",
+      "id": "512f2798-0ed6-4ff4-b345-fdaca7496dd4",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{RAPI}}.execute-api.amazonaws.com",
+            "type": "text",
+            "uuid": "76e50aa4-a221-45ec-8280-4900db804108"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/{{stage}}/sessions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "{{stage}}",
+            "sessions"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "id": "5ae23a31-93b6-449c-929f-5c0092b49759",
+      "key": "stage",
+      "value": ""
+    },
+    {
+      "id": "84b0dda9-df99-4b53-973b-327c74f7299b",
+      "key": "RAPI",
+      "value": ""
+    },
+    {
+      "id": "90d73cc7-50a4-4195-b199-bef9cc3958c6",
+      "key": "baseUrl",
+      "value": "",
+      "type": "default"
+    }
+  ]
+}
