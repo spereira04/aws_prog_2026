@@ -14,8 +14,37 @@ Resources:
     Properties:
       Handler: get_session.handler
       CodeUri: ./lambda/session_functions/get_session
-      Environment:
-        Variables:
-          SESSION_KEY: 9205
       Policies:
         - AWSLambdaBasicExecutionRole
+      Events:
+        AddUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /sessions
+            Method: GET
+
+  ListDrivers:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: list_drivers.handler
+      CodeUri: ./lambda/session_functions/list_drivers
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Events:
+        ListDrivers:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /drivers
+            Method: GET
+
+  F1ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: F1Api
+      StageName: prod
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
