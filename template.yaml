@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Session Functions
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+
+Resources:
+  GetSession:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: get_session.handler
+      CodeUri: ./lambda/session_functions/get_session
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Events:
+        AddUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /sessions
+            Method: GET
+
+  ListDrivers:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: list_drivers.handler
+      CodeUri: ./lambda/session_functions/list_drivers
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Events:
+        ListDrivers:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /drivers
+            Method: GET
+
+  F1ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: F1Api
+      StageName: prod
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
