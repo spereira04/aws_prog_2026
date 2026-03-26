@@ -13,7 +13,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: get_session.handler
-      CodeUri: ./get_session
+      CodeUri: ./lambda/session_functions/get_session
       Environment:
         Variables:
           SESSION_KEY: 9205
