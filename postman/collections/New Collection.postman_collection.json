@@ -6,6 +6,98 @@
   },
   "item": [
     {
+      "name": "Activities",
+      "item": [
+        {
+          "name": "Week-2",
+          "item": [
+            {
+              "name": "ListSessions",
+              "id": "3c3171c5-fe18-47ed-93ba-3fce6fdd0d5c",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Host",
+                    "value": "{{RAPI}}.execute-api.amazonaws.com",
+                    "type": "text",
+                    "uuid": "3c054691-7ca8-4bd1-9f09-b1130d0db1b6"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/{{stage}}/sessions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "{{stage}}",
+                    "sessions"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "GetSession",
+              "id": "b11f2f14-3436-4999-8899-45db2de1c345",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Host",
+                    "value": "{{RAPI}}.execute-api.amazonaws.com",
+                    "type": "text",
+                    "uuid": "3c054691-7ca8-4bd1-9f09-b1130d0db1b6"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/{{stage}}/sessions/latest",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "{{stage}}",
+                    "sessions",
+                    "latest"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "IngestSession",
+              "id": "354f8d42-cf67-48ca-96b4-1da3a11e6d78",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Host",
+                    "value": "{{RAPI}}.execute-api.amazonaws.com",
+                    "type": "text",
+                    "uuid": "3c054691-7ca8-4bd1-9f09-b1130d0db1b6"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/{{stage}}/sessions/latest",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "{{stage}}",
+                    "sessions",
+                    "latest"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ],
+          "id": "eb9c097b-19fb-4eaf-b8dd-2d2624a3eae4"
+        }
+      ],
+      "id": "f8947889-8bd1-4c3b-bf0b-554e0cfca695"
+    },
+    {
       "name": "Get Drivers",
       "id": "681e1438-6123-413a-8829-4ea4fed0b49b",
       "request": {
