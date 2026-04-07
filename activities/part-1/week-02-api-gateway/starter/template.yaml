@@ -54,7 +54,7 @@ Resources:
           Properties:
             RestApiId: !Ref F1Api
             Path: /sessions/{session_key}/ingest
-            Method: GET
+            Method: POST
 
   # TODO: Add GetSessionFunction
   # - Handler: handler.get_session
