@@ -68,6 +68,43 @@
               "name": "IngestSession",
               "id": "354f8d42-cf67-48ca-96b4-1da3a11e6d78",
               "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Host",
+                    "value": "{{RAPI}}.execute-api.amazonaws.com",
+                    "type": "text",
+                    "uuid": "3c054691-7ca8-4bd1-9f09-b1130d0db1b6"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/{{stage}}/sessions/latest/ingest",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "{{stage}}",
+                    "sessions",
+                    "latest",
+                    "ingest"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ],
+          "id": "eb9c097b-19fb-4eaf-b8dd-2d2624a3eae4"
+        },
+        {
+          "name": "Week-3",
+          "item": [
+            {
+              "name": "ListSessions",
+              "id": "67da6c51-906a-4f78-91d3-d769c55c18b3",
+              "protocolProfileBehavior": {
+                "disabledSystemHeaders": {}
+              },
+              "request": {
                 "method": "GET",
                 "header": [
                   {
@@ -78,21 +115,20 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/{{stage}}/sessions/latest",
+                  "raw": "{{baseUrl}}/{{stage}}/sessions",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "{{stage}}",
-                    "sessions",
-                    "latest"
+                    "sessions"
                   ]
                 }
               },
               "response": []
             }
           ],
-          "id": "eb9c097b-19fb-4eaf-b8dd-2d2624a3eae4"
+          "id": "78fcd732-0019-43ef-aa55-b8f540a23f7a"
         }
       ],
       "id": "f8947889-8bd1-4c3b-bf0b-554e0cfca695"

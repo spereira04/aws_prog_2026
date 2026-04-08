@@ -6,22 +6,42 @@ Description: Week 3 - SAM Deep Dive
 # - Environment: dev or prod
 # - OpenF1BaseUrl: with default value
 
+Parameters:
+  Environment:
+    Type: String
+    Default: "default"
+    AllowedValues:
+      - prod
+      - dev
+      - default
+  OpenF1BaseUrl:
+    Type: String
+    Default: "https://api.openf1.org"
+
 # TODO: Add Globals section with shared function config
 # - Runtime, Timeout, MemorySize, Environment variables
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        OPENF1_BASE_URL: !Ref OpenF1BaseUrl
 
 Resources:
   F1Api:
     Type: AWS::Serverless::Api
     Properties:
-      StageName: dev  # TODO: Use Environment parameter
+      StageName: !Ref Environment  # TODO: Use Environment parameter
 
   ListSessionsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: f1-list-sessions  # TODO: Add environment suffix
+      FunctionName: !Sub "f1-list-sessions-${Environment}"  # TODO: Add environment suffix
       Handler: handler.list_sessions
       CodeUri: .
-      Runtime: python3.12  # TODO: Move to Globals
       Events:
         Api:
           Type: Api
@@ -33,10 +53,9 @@ Resources:
   GetSessionFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: f1-get-session  # TODO: Add environment suffix
+      FunctionName: !Sub "f1-get-session-${Environment}"  # TODO: Add environment suffix
       Handler: handler.get_session
       CodeUri: .
-      Runtime: python3.12  # TODO: Move to Globals
       Events:
         Api:
           Type: Api
@@ -48,10 +67,9 @@ Resources:
   IngestSessionFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: f1-ingest-session  # TODO: Add environment suffix
+      FunctionName: !Sub "f1-ingest-session-${Environment}"  # TODO: Add environment suffix
       Handler: handler.ingest_session
       CodeUri: .
-      Runtime: python3.12  # TODO: Move to Globals
       Timeout: 120  # TODO: Consider Globals vs override
       MemorySize: 512
       Events:
@@ -62,4 +80,17 @@ Resources:
             Path: /sessions/{session_key}/ingest
             Method: POST
 
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+
 # TODO: Add Outputs section with API URL
+Outputs:
+  F1ApiUrl:
+    Description: "URL del API Gateway para el entorno seleccionado"
+    Value: !If
+    - IsProd
+    - "https://${F1Api}.execute-api.${AWS::Region}://${Environment}"
+    - "http://localhost:4566/restapis/${F1Api}/${Environment}/_user_request_"
+  F1ApiRapi:
+    Description: "Identificador de API Gateway"
+    Value: !Ref F1Api
