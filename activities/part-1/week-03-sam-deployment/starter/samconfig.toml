@@ -11,7 +11,7 @@ stack_name = "f1-telemetry-prod"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM"
 resolve_s3 = true
-parameter_overrides = "Stage='prod' OpenF1BaseUrl='https://api.openf1.org'"
+parameter_overrides = "Environment='prod' OpenF1BaseUrl='https://api.openf1.org'"
 
 [dev.deploy.parameters]
 stack_name = "f1-telemetry-dev"

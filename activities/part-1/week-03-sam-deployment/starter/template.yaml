@@ -89,8 +89,8 @@ Outputs:
     Description: "URL del API Gateway para el entorno seleccionado"
     Value: !If
     - IsProd
-    - "https://${F1Api}.execute-api.${AWS::Region}://${Environment}"
-    - "http://localhost:4566/restapis/${F1Api}/${Environment}/_user_request_"
+    - !Sub "https://${F1Api}.execute-api.${AWS::Region}://${Environment}"
+    - !Sub "http://localhost:4566/restapis/${F1Api}/${Environment}/_user_request_"
   F1ApiRapi:
     Description: "Identificador de API Gateway"
     Value: !Ref F1Api
