@@ -31,10 +31,13 @@ def handler(event, context):
     try:
         ingest_sessions(query_params.get("sessions_start_date"), query_params.get("sessions_end_date"))
     except RequestException as e:
-        logger.error("Request error detected, cannot finish data ingestion", e)
+        logger.error(f"Request error detected, cannot finish data ingestion {e}")
     logger.info("Ingestion finished")
-    # ingest_sessions("2023-09-16T13:59:07.606000+00:00", "2023-10-16T13:59:07.606000+00:00")
-
+    return {
+        "statusCode": 200,
+        "body": json.dumps({"message": "Ingestion finished"}),
+        "headers": HEADERS
+    }
 
 def ingest_sessions(start_date, end_date):
 
@@ -64,7 +67,7 @@ def ingest_sessions(start_date, end_date):
             logger.info(f"Saved session {session_key}")
             ingest_drivers(session_key)
         except(ClientError, BotoCoreError) as e:
-            logger.error(f"Could not save session {session_key}", e)
+            logger.error(f"Could not save session {session_key} ERROR: {e}")
     return None
 
 
@@ -85,7 +88,7 @@ def ingest_drivers(session_key):
         for driver in drivers:
             ingest_laps(session_key, driver["driver_number"])
     except (ClientError, BotoCoreError) as e:
-        logger.error(f"Could not save drivers for session {session_key}", e)
+        logger.error(f"Could not save drivers for session {session_key} ERROR {e}")
 
 
 def ingest_laps(session_key, driver_number):
@@ -101,5 +104,6 @@ def ingest_laps(session_key, driver_number):
             Key=f'sessions/{session_key}/drivers/{driver_number}/laps.json',
             ContentType='application/json'
         )
+        logger.info(f"Saved driver {driver_number} laps")
     except (ClientError, BotoCoreError) as e:
-        logger.error(f"Could not ingest lap of driver {driver_number} in {session_key}", e)
+        logger.error(f"Could not ingest lap of driver {driver_number} in {session_key} ERROR: {e}")
