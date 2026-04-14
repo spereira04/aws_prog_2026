@@ -184,6 +184,44 @@
         }
       },
       "response": []
+    },
+    {
+      "name": "Data Ingestion",
+      "id": "8719e2fd-0e6d-4b8e-ae92-125caf503e5a",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Host",
+            "value": "{{RAPI}}.execute-api.amazonaws.com",
+            "type": "text",
+            "uuid": "76e50aa4-a221-45ec-8280-4900db804108"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/{{stage}}/data-ingestion?sessions_start_date=2023-09-16T13:59:07.606000+00:00&sessions_end_date=2024-09-16T13:59:07.606000+00:00",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "{{stage}}",
+            "data-ingestion"
+          ],
+          "query": [
+            {
+              "key": "sessions_start_date",
+              "value": "2023-09-16T13:59:07.606000+00:00",
+              "uuid": "e5e66662-dc82-40b9-94d3-94bce317cd09"
+            },
+            {
+              "key": "sessions_end_date",
+              "value": "2024-09-16T13:59:07.606000+00:00",
+              "uuid": "ef971886-2cd8-4cab-937e-956b10c8f8c3"
+            }
+          ]
+        }
+      },
+      "response": []
     }
   ],
   "variable": [

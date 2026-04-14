@@ -2,6 +2,18 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Session Functions
 
+Parameters:
+  Environment:
+    Type: String
+    Default: "default"
+    AllowedValues:
+      - prod
+      - dev
+      - default
+  OpenF1BaseUrl:
+    Type: String
+    Default: "https://api.openf1.org/v1"
+
 Globals:
   Function:
     Runtime: python3.12
@@ -9,42 +21,71 @@ Globals:
     MemorySize: 256
 
 Resources:
-  GetSession:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: get_session.handler
-      CodeUri: ./lambda/session_functions/get_session
-      Policies:
-        - AWSLambdaBasicExecutionRole
-      Events:
-        AddUser:
-          Type: Api
-          Properties:
-            RestApiId: !Ref F1ApiGateway
-            Path: /sessions
-            Method: GET
-
-  ListDrivers:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: list_drivers.handler
-      CodeUri: ./lambda/session_functions/list_drivers
-      Policies:
-        - AWSLambdaBasicExecutionRole
-      Events:
-        ListDrivers:
-          Type: Api
-          Properties:
-            RestApiId: !Ref F1ApiGateway
-            Path: /drivers
-            Method: GET
-
   F1ApiGateway:
     Type: AWS::Serverless::Api
     Properties:
-      Name: F1Api
-      StageName: prod
+      Name: !Sub "F1Api-${Environment}"
+      StageName: !Ref Environment
       Cors:
         AllowMethods: "'GET,POST,OPTIONS'"
         AllowHeaders: "'Content-Type,Authorization'"
         AllowOrigin: "'*'"
+
+  DataIngestion:
+      Type: AWS::Serverless::Function
+      Properties:
+        Handler: raw_data_ingestion.handler
+        CodeUri: ./lambda/data_ingestion
+        Policies:
+          - AWSLambdaBasicExecutionRole
+          - S3CrudPolicy:
+              BucketName: !Ref RawDataBucket
+        Environment:
+          Variables:
+            MY_S3_BUCKET: !Ref RawDataBucket
+            OPENF1_BASE_URL: https://api.openf1.org/v1
+        Timeout: 120
+        Events:
+          AddUser:
+            Type: Api
+            Properties:
+              RestApiId: !Ref F1ApiGateway
+              Path: /data-ingestion
+              Method: POST
+
+  RawDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "raw-data-bucket-${Environment}"
+
+
+
+#  GetSession:
+#    Type: AWS::Serverless::Function
+#    Properties:
+#      Handler: get_session.handler
+#      CodeUri: ./lambda/session_functions/get_session
+#      Policies:
+#        - AWSLambdaBasicExecutionRole
+#      Events:
+#        AddUser:
+#          Type: Api
+#          Properties:
+#            RestApiId: !Ref F1ApiGateway
+#            Path: /sessions
+#            Method: GET
+#
+#  ListDrivers:
+#    Type: AWS::Serverless::Function
+#    Properties:
+#      Handler: list_drivers.handler
+#      CodeUri: ./lambda/session_functions/list_drivers
+#      Policies:
+#        - AWSLambdaBasicExecutionRole
+#      Events:
+#        ListDrivers:
+#          Type: Api
+#          Properties:
+#            RestApiId: !Ref F1ApiGateway
+#            Path: /drivers
+#            Method: GET
