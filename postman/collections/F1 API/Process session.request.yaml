@@ -1,0 +1,9 @@
+$kind: http-request
+name: Process session
+url: "{{baseUrl}}/{{stage}}/process-session?session_key=9165"
+method: PATCH
+headers:
+  Host: "{{RAPI}}.execute-api.amazonaws.com"
+queryParams:
+  session_key: "9165"
+order: 36506673614719

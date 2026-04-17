@@ -31,7 +31,7 @@ Resources:
         AllowHeaders: "'Content-Type,Authorization'"
         AllowOrigin: "'*'"
 
-  DataIngestion:
+  RawDataIngestion:
       Type: AWS::Serverless::Function
       Properties:
         Handler: raw_data_ingestion.handler
@@ -42,11 +42,11 @@ Resources:
               BucketName: !Ref RawDataBucket
         Environment:
           Variables:
-            MY_S3_BUCKET: !Ref RawDataBucket
-            OPENF1_BASE_URL: https://api.openf1.org/v1
+            S3_BUCKET: !Ref RawDataBucket
+            OPENF1_BASE_URL: !Ref OpenF1BaseUrl
         Timeout: 120
         Events:
-          AddUser:
+          DataIngest:
             Type: Api
             Properties:
               RestApiId: !Ref F1ApiGateway
@@ -58,6 +58,56 @@ Resources:
     Properties:
       BucketName: !Sub "raw-data-bucket-${Environment}"
 
+  ProcessSession:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: process_session.handler
+      CodeUri: ./lambda/data_ingestion
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3CrudPolicy:
+            BucketName: !Ref RawDataBucket
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref RawDataBucket
+          DYNAMODB_TABLE: !Ref OpenF1Table
+      Timeout: 120
+      Events:
+        ProcessSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /process-session
+            Method: PATCH
+
+  OpenF1Table:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName: !Sub "f1-sessions-data-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+  IngestEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - raw.data.ingest
+        detail-type:
+          - json.ingested
+      Targets:
+        - Arn: !GetAtt ProcessSession.Arn
+          Id: ProcessLambdaTarget
 
 
 #  GetSession:
