@@ -39,9 +39,7 @@ def get_position_at_lap_end(lap, positions, dates):
 
 
 def handler(event, context):
-    query_params = event.get("queryStringParameters") or {}
-    session_key = query_params.get("session_key")
-    # session_key = str(event["session_key"])
+    session_key = str(event["detail"]["session_key"])
     drivers = read_s3(f"sessions/{session_key}/drivers/driversRace.json")
 
     items = []

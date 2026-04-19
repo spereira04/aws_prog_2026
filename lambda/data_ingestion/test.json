@@ -1,6 +1,0 @@
-{
-  "Parameters": {
-    "S3_BUCKET": "raw-data-bucket-dev",
-    "DYNAMODB_TABLE": "your-table-name"
-  }
-}

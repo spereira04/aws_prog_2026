@@ -9,8 +9,6 @@ import logging
 
 from botocore.exceptions import BotoCoreError, ClientError
 from requests import RequestException
-from requests.adapters import HTTPAdapter
-from urllib3 import Retry
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -24,31 +22,62 @@ event_client = boto3.client('events')
 HEADERS = {"Content-Type": "application/json"}
 
 
-session = requests.Session()
+def fetch(url, params=None, max_retries=10):
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, params=params, timeout=15, headers={"Connection": "close"})
+        except requests.Timeout:
+            logger.warning("Request timed out on attempt %s/%s for %s", attempt + 1, max_retries, url)
+            if attempt + 1 == max_retries:
+                raise RequestException(f"Request timed out after {max_retries} attempts for {url}")
+            time.sleep(2)
+            continue
 
-retry_strategy = Retry(
-    total=5,
-    backoff_factor=2,
-    status_forcelist=[429, 500, 502, 503, 504],
-)
-
-session.mount("https://", HTTPAdapter(max_retries=retry_strategy))
-
-def fetch(url, params=None):
-    while True:
-        response = session.get(url, params=params)
         if response.status_code == 429:
-            wait = int(response.headers.get("Retry-After", 10))
-            logger.info("Rate limited, waiting %ss", wait)
+            retry_after = response.headers.get("Retry-After", "10")
+            try:
+                wait = min(int(retry_after), 10)
+            except ValueError:
+                wait = 10
+            logger.info("Rate limited on attempt %s/%s, waiting %ss", attempt + 1, max_retries, wait)
             time.sleep(wait)
             continue
+
+        if response.status_code in (500, 502, 503, 504):
+            logger.warning("Server error %s on attempt %s/%s, retrying", response.status_code, attempt + 1, max_retries)
+            if attempt + 1 == max_retries:
+                raise RequestException(f"Server error {response.status_code} after {max_retries} attempts for {url}")
+            time.sleep(2)
+            continue
+
         response.raise_for_status()
         return response.json()
 
-def handler(event, context):
-    query_params = event.get("queryStringParameters") or {}
+    raise RequestException(f"Max retries ({max_retries}) exceeded for {url}")
 
-    session_key = query_params.get("session_key")
+
+def is_already_ingested(session_key):
+    try:
+        s3_client.head_object(Bucket=BUCKET_NAME, Key=f'sessions/{session_key}/session.json')
+        return True
+    except ClientError as e:
+        if e.response['Error']['Code'] in ('404', 'NoSuchKey'):
+            return False
+        raise
+
+
+def handler(event, context):
+    logger.info("Event received: %s", json.dumps(event))
+
+    session_key = event.get("session_key")
+
+    if is_already_ingested(session_key):
+        logger.info("Session %s already ingested, skipping", session_key)
+        return {
+            "statusCode": 200,
+            "body": json.dumps({"message": "Already ingested"}),
+            "headers": HEADERS
+        }
 
     logger.info(f"Starting data ingestion for session {session_key}")
 
@@ -105,10 +134,7 @@ def ingest_sessions(session_key):
 
 def ingest_drivers(session_key):
     drivers = fetch(BASE_URL + "/drivers", params={"session_key": session_key})
-    # response = requests.get(BASE_URL + "/drivers", params={"session_key": session_key})
-    # response.raise_for_status()
 
-    # drivers = response.json()
     try:
         s3_client.put_object(
             Body=json.dumps(drivers),
@@ -121,17 +147,17 @@ def ingest_drivers(session_key):
         for driver in drivers:
             ingest_laps(session_key, driver["driver_number"])
             ingest_positions(session_key, driver["driver_number"])
+            time.sleep(0.5)
     except (ClientError, BotoCoreError) as e:
         logger.error(f"Could not save drivers for session {session_key} ERROR {e}")
 
 
 def ingest_laps(session_key, driver_number):
+    logger.info(f"Fetching laps for driver {driver_number}")
+
     laps = fetch(BASE_URL + "/laps", params={"session_key": session_key, "driver_number": driver_number})
-    # response = requests.get(BASE_URL + "/laps", params={"session_key": session_key, "driver_number": driver_number})
-    # response.raise_for_status()
 
-    # laps = response.json()
-
+    logger.info(f"Fetched {len(laps)} laps for driver {driver_number}, saving to S3")
     try:
         s3_client.put_object(
             Body=json.dumps(laps),
@@ -144,11 +170,11 @@ def ingest_laps(session_key, driver_number):
         logger.error(f"Could not ingest lap of driver {driver_number} in {session_key} ERROR: {e}")
 
 def ingest_positions(session_key, driver_number):
-    positions = fetch(BASE_URL + "/position", params={"session_key": session_key, "driver_number": driver_number})
-    # response = requests.get(BASE_URL + "/position", params={"session_key": session_key, "driver_number": driver_number})
-    # response.raise_for_status()
+    logger.info(f"Fetching positions for driver {driver_number}")
 
-    # positions = response.json()
+    positions = fetch(BASE_URL + "/position", params={"session_key": session_key, "driver_number": driver_number})
+
+    logger.info(f"Fetched {len(positions)} positions for driver {driver_number}, saving to S3")
     try:
         s3_client.put_object(
             Body=json.dumps(positions),
@@ -165,7 +191,7 @@ def publish_event(session_key):
         event_client.put_events(
             Entries=[
                 {
-                    "Source": "raw.data.ingest",
+                    "Source": "process.data.ingest",
                     "DetailType": "json.ingested",
                     "Detail": json.dumps({
                         "session_key": session_key
