@@ -1,0 +1,13 @@
+$kind: http-request
+name: Get Driver Session Lap Data
+url: "{{baseUrl}}/{{stage}}/sessions/driverLap?session_key=9165&driver_id=1"
+method: GET
+headers:
+  Host: "{{RAPI}}.execute-api.amazonaws.com"
+queryParams:
+  session_key: "9165"
+  driver_id: "1"
+body:
+  type: json
+  content: ""
+order: 2005469416693361

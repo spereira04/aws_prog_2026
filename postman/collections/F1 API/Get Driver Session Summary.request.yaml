@@ -1,0 +1,17 @@
+$kind: http-request
+name: Get Driver Session Summary
+url: "{{baseUrl}}/{{stage}}/sessions/driverSummary?session_key=9165&driver_id=1"
+method: GET
+headers:
+  Host: "{{RAPI}}.execute-api.amazonaws.com"
+queryParams:
+  - key: session_key
+    value: "9165"
+    $type: ""
+  - key: driver_id
+    value: "1"
+    $type: ""
+body:
+  type: json
+  content: ""
+order: 1295456240220165

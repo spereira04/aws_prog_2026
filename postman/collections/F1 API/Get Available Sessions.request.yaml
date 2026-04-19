@@ -1,6 +1,7 @@
 $kind: http-request
+name: Get Available Sessions
 url: "{{baseUrl}}/{{stage}}/sessions"
 method: GET
 headers:
   Host: "{{RAPI}}.execute-api.amazonaws.com"
-order: 3000
+order: 2165
