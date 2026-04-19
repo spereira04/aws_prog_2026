@@ -33,8 +33,12 @@ def parse_dt(s):
 def get_position_at_lap_end(lap, positions, dates):
     if not lap.get("date_start") or lap.get("lap_duration") is None:
         return None
-    lap_end = parse_dt(lap["date_start"]) + timedelta(seconds=float(lap["lap_duration"]))
-    candidates = [p for p in positions if parse_dt(p["date"]) <= lap_end]
+
+    lap_end = parse_dt(lap["date_start"]) + timedelta(
+        seconds=float(lap.get("lap_duration") or 0)
+    )
+
+    candidates = [positions[i] for i, d in enumerate(dates) if d <= lap_end]
     return candidates[-1]["position"] if candidates else None
 
 
@@ -45,7 +49,7 @@ def handler(event, context):
     items = []
 
     session = read_s3(f"sessions/{session_key}/session.json")
-    items.append({"PK": f"SESSION#{session_key}", "SK": "#METADATA", **session})
+    items.append({"PK": f"SESSION", "SK": f"SESSION#{session_key}", **session})
 
     for driver in drivers:
         driver_number = str(driver["driver_number"])
@@ -65,8 +69,8 @@ def handler(event, context):
         speeds = [lap[f] for lap in laps for f in ("i1_speed", "i2_speed", "st_speed") if lap.get(f)]
 
         items.append({
-            "PK": f"SESSION#{session_key}#DRIVER#{driver_number}",
-            "SK": "#METADATA",
+            "PK": f"SESSION#{session_key}",
+            "SK": f"#METADATA#DRIVER#{driver_number}",
             **driver,
             "total_laps": len(laps),
             "best_lap_number": best["lap_number"] if best else None,
@@ -77,8 +81,8 @@ def handler(event, context):
 
         for lap in laps:
             items.append({
-                "PK": f"SESSION#{session_key}#DRIVER#{driver_number}",
-                "SK": f"LAP#{lap['lap_number']:03d}",
+                "PK": f"SESSION#{session_key}",
+                "SK": f"DRIVER#{driver_number}#LAP#{lap['lap_number']:03d}",
                 **lap,
                 "lap_duration": Decimal(str(lap["lap_duration"])) if lap.get("lap_duration") else None,
             })

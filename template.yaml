@@ -117,33 +117,82 @@ Resources:
         - AttributeName: SK
           KeyType: RANGE
 
+  ListAvailableSessions:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: list_available_sessions.handler
+      CodeUri: ./lambda/sessions
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref OpenF1Table
+      Timeout: 10
+      MemorySize: 128
+      Events:
+        ListAvailableSessions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /sessions
+            Method: GET
 
-#  GetSession:
-#    Type: AWS::Serverless::Function
-#    Properties:
-#      Handler: get_session.handler
-#      CodeUri: ./lambda/session_functions/get_session
-#      Policies:
-#        - AWSLambdaBasicExecutionRole
-#      Events:
-#        AddUser:
-#          Type: Api
-#          Properties:
-#            RestApiId: !Ref F1ApiGateway
-#            Path: /sessions
-#            Method: GET
-#
-#  ListDrivers:
-#    Type: AWS::Serverless::Function
-#    Properties:
-#      Handler: list_drivers.handler
-#      CodeUri: ./lambda/session_functions/list_drivers
-#      Policies:
-#        - AWSLambdaBasicExecutionRole
-#      Events:
-#        ListDrivers:
-#          Type: Api
-#          Properties:
-#            RestApiId: !Ref F1ApiGateway
-#            Path: /drivers
-#            Method: GET
+  ListSessionDrivers:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: list_session_drivers.handler
+      CodeUri: ./lambda/drivers
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref OpenF1Table
+      Timeout: 10
+      MemorySize: 128
+      Events:
+        ListAvailableSessions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /sessions/drivers
+            Method: GET
+
+  DriverSessionSummary:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: get_driver_session_summary.handler
+      CodeUri: ./lambda/drivers
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref OpenF1Table
+      Timeout: 10
+      MemorySize: 128
+      Events:
+        ListAvailableSessions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /sessions/driverSummary
+            Method: GET
+
+  DriverSessionLapData:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: get_driver_lap_data.handler
+      CodeUri: ./lambda/drivers
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref OpenF1Table
+      Timeout: 10
+      MemorySize: 128
+      Events:
+        ListAvailableSessions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /sessions/driverLap
+            Method: GET
