@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{baseUrl}}/{{stage}}/sessions/latest/ingest"
+method: POST
+headers:
+  Host: "{{RAPI}}.execute-api.amazonaws.com"
+order: 3000
