@@ -1,0 +1,198 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Session Functions
+
+Parameters:
+  Environment:
+    Type: String
+    Default: "default"
+    AllowedValues:
+      - prod
+      - dev
+      - default
+  OpenF1BaseUrl:
+    Type: String
+    Default: "https://api.openf1.org/v1"
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+
+Resources:
+  F1ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "F1Api-${Environment}"
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+
+  TriggerIngestion:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: trigger_ingestion.handler
+      CodeUri: ./lambda/data_ingestion
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - LambdaInvokePolicy:
+            FunctionName: !Ref RawDataIngestion
+      Environment:
+        Variables:
+          RAW_DATA_INGESTION_FUNCTION: !Ref RawDataIngestion
+      Timeout: 10
+      MemorySize: 128
+      Events:
+        DataIngest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /data-ingestion
+            Method: POST
+
+  RawDataIngestion:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: raw_data_ingestion.handler
+      CodeUri: ./lambda/data_ingestion
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3CrudPolicy:
+            BucketName: !Ref RawDataBucket
+        - EventBridgePutEventsPolicy:
+            EventBusName: default
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref RawDataBucket
+          OPENF1_BASE_URL: !Ref OpenF1BaseUrl
+      Timeout: 300
+      MemorySize: 512
+
+  RawDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "raw-data-bucket-${Environment}"
+
+  ProcessSession:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: process_session.handler
+      CodeUri: ./lambda/data_ingestion
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3CrudPolicy:
+            BucketName: !Ref RawDataBucket
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref RawDataBucket
+          DYNAMODB_TABLE: !Ref OpenF1Table
+      Timeout: 120
+      Events:
+        ProcessSession:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - process.data.ingest
+              detail-type:
+                - json.ingested
+
+  OpenF1Table:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName: !Sub "f1-sessions-data-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+  ListAvailableSessions:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: list_available_sessions.handler
+      CodeUri: ./lambda/sessions
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref OpenF1Table
+      Timeout: 10
+      MemorySize: 128
+      Events:
+        ListAvailableSessions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /sessions
+            Method: GET
+
+  ListSessionDrivers:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: list_session_drivers.handler
+      CodeUri: ./lambda/drivers
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref OpenF1Table
+      Timeout: 10
+      MemorySize: 128
+      Events:
+        ListAvailableSessions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /sessions/drivers
+            Method: GET
+
+  DriverSessionSummary:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: get_driver_session_summary.handler
+      CodeUri: ./lambda/drivers
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref OpenF1Table
+      Timeout: 10
+      MemorySize: 128
+      Events:
+        ListAvailableSessions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /sessions/driverSummary
+            Method: GET
+
+  DriverSessionLapData:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: get_driver_lap_data.handler
+      CodeUri: ./lambda/drivers
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref OpenF1Table
+      Timeout: 10
+      MemorySize: 128
+      Events:
+        ListAvailableSessions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /sessions/driverLap
+            Method: GET

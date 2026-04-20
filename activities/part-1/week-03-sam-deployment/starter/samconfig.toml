@@ -1,0 +1,28 @@
+# TODO: Configure deployment profiles for dev and prod
+# Each profile should specify:
+# - stack_name
+# - region
+# - capabilities
+# - parameter_overrides
+version = 0.1
+
+[prod.deploy.parameters]
+stack_name = "f1-telemetry-prod"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+resolve_s3 = true
+parameter_overrides = "Environment='prod' OpenF1BaseUrl='https://api.openf1.org'"
+
+[dev.deploy.parameters]
+stack_name = "f1-telemetry-dev"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+resolve_s3 = true
+parameter_overrides = "Environment='dev' OpenF1BaseUrl='https://api.openf1.org'"
+
+[default.deploy.parameters]
+stack_name = "f1-telemetry"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+resolve_s3 = true
+confirm_changeset = true

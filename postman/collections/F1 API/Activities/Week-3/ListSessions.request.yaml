@@ -1,0 +1,8 @@
+$kind: http-request
+url: "{{baseUrl}}/{{stage}}/sessions"
+method: GET
+headers:
+  Host: "{{RAPI}}.execute-api.amazonaws.com"
+settings:
+  disabledSystemHeaders: []
+order: 1000

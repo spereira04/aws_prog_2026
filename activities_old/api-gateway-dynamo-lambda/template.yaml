@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: API Gateway + Lambda (Get/Add Users) + DynamoDB
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 10
+    MemorySize: 128
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref UsersTable
+
+Resources:
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: UsersTable
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: UsersLambdaExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                Resource: !GetAtt UsersTable.Arn
+
+  GetUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: GetUsersFunction
+      CodeUri: .
+      Handler: get_users.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        GetUsers:
+          Type: Api
+          Properties:
+            RestApiId: !Ref UsersApi
+            Path: /users
+            Method: GET
+
+  AddUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: AddUserFunction
+      CodeUri: .
+      Handler: post_user.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        AddUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref UsersApi
+            Path: /users
+            Method: POST
+
+  UsersApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: UsersApi
+      StageName: prod
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+
+Outputs:
+  ApiUrl:
+    Description: URL base de la API
+    Value: !Sub "https://${UsersApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+
+  UsersTableName:
+    Description: Nombre de la tabla DynamoDB
+    Value: !Ref UsersTable
+
+  GetUsersFunctionArn:
+    Description: ARN de GetUsersFunction
+    Value: !GetAtt GetUsersFunction.Arn
+
+  AddUserFunctionArn:
+    Description: ARN de AddUserFunction
+    Value: !GetAtt AddUserFunction.Arn

@@ -1,0 +1,96 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Week 3 - SAM Deep Dive
+
+# TODO: Add Parameters section
+# - Environment: dev or prod
+# - OpenF1BaseUrl: with default value
+
+Parameters:
+  Environment:
+    Type: String
+    Default: "default"
+    AllowedValues:
+      - prod
+      - dev
+      - default
+  OpenF1BaseUrl:
+    Type: String
+    Default: "https://api.openf1.org"
+
+# TODO: Add Globals section with shared function config
+# - Runtime, Timeout, MemorySize, Environment variables
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        OPENF1_BASE_URL: !Ref OpenF1BaseUrl
+
+Resources:
+  F1Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment  # TODO: Use Environment parameter
+
+  ListSessionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "f1-list-sessions-${Environment}"  # TODO: Add environment suffix
+      Handler: handler.list_sessions
+      CodeUri: .
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1Api
+            Path: /sessions
+            Method: GET
+
+  GetSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "f1-get-session-${Environment}"  # TODO: Add environment suffix
+      Handler: handler.get_session
+      CodeUri: .
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1Api
+            Path: /sessions/{session_key}
+            Method: GET
+
+  IngestSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "f1-ingest-session-${Environment}"  # TODO: Add environment suffix
+      Handler: handler.ingest_session
+      CodeUri: .
+      Timeout: 120  # TODO: Consider Globals vs override
+      MemorySize: 512
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1Api
+            Path: /sessions/{session_key}/ingest
+            Method: POST
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+
+# TODO: Add Outputs section with API URL
+Outputs:
+  F1ApiUrl:
+    Description: "URL del API Gateway para el entorno seleccionado"
+    Value: !If
+    - IsProd
+    - !Sub "https://${F1Api}.execute-api.${AWS::Region}://${Environment}"
+    - !Sub "http://localhost:4566/restapis/${F1Api}/${Environment}/_user_request_"
+  F1ApiRapi:
+    Description: "Identificador de API Gateway"
+    Value: !Ref F1Api
