@@ -1,0 +1,92 @@
+{
+  "/MessagingStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/MessagingStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/MessagingStack/TelemetryDLQ/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "TelemetryDLQ72E25976"
+    }
+  ],
+  "/MessagingStack/TelemetryQueue/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "TelemetryQueueA269A382"
+    }
+  ],
+  "/MessagingStack/EventConsumer/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "EventConsumer3B06F01D"
+    }
+  ],
+  "/MessagingStack/EngineHandler/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "EngineHandlerDE59D62B"
+    }
+  ],
+  "/MessagingStack/SimulatorTick/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SimulatorTick10B3BB05"
+    }
+  ],
+  "/MessagingStack/SimulatorTick/AllowEventRuleMessagingStackEngineHandler7F135609": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SimulatorTickAllowEventRuleMessagingStackEngineHandler7F135609D86E88C1"
+    }
+  ],
+  "/MessagingStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/MessagingStack/CDKMetadata/Condition": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadataAvailable"
+    }
+  ],
+  "/MessagingStack/EventConsumer/ServiceRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "EventConsumerServiceRole4DCB1559"
+    }
+  ],
+  "/MessagingStack/EventConsumer/SqsEventSource:MessagingStackTelemetryQueue663DE599/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "EventConsumerSqsEventSourceMessagingStackTelemetryQueue663DE59928A57521"
+    }
+  ],
+  "/MessagingStack/EngineHandler/ServiceRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "EngineHandlerServiceRole8205FE71"
+    }
+  ],
+  "/MessagingStack/EventConsumer/ServiceRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "EventConsumerServiceRoleDefaultPolicyD7C8AE6F"
+    }
+  ],
+  "/MessagingStack/EngineHandler/ServiceRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "EngineHandlerServiceRoleDefaultPolicyDE6FC177"
+    }
+  ]
+}

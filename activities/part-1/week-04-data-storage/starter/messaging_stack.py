@@ -13,6 +13,6 @@ class MessagingStack(Stack):
         events.Rule(
             self,
             "FiveSecondRuleTrigger",
-            schedule=events.Schedule.rate(Duration.seconds(5)),
+            schedule=events.Schedule.rate(Duration.minutes(1)),
             enabled=False,  # disabled by default
         )
