@@ -99,6 +99,6 @@ class MessagingStack(Stack):
             "SimulatorTick",
             rule_name="f1-simulator-tick",
             schedule=events.Schedule.rate(Duration.minutes(1)),
-            enabled=True,
+            enabled=False,
             targets=[targets.LambdaFunction(engine_fn)],
         )

@@ -26,9 +26,9 @@ def handler(event, context):
     for record in event["Records"]:
         try:
             body = json.loads(record["body"])
-            logger.info(body)
+            logger.log(body)
             table.put_item(Item={
-                "session_key": str(body["session_key"]),
+                "session_key": body["session_key"],
                 "driver_number": str(body["driver_number"]),
                 "timestamp": body["timestamp"],
                 **body.get("data", {}),

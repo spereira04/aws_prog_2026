@@ -24,11 +24,11 @@ def handler(event, context):
     batch_item_failures = []
 
     for record in event["Records"]:
+        logger.log(json.dumps(record))
         try:
             body = json.loads(record["body"])
-            logger.info(body)
             table.put_item(Item={
-                "session_key": str(body["session_key"]),
+                "session_key": body["session_key"],
                 "driver_number": str(body["driver_number"]),
                 "timestamp": body["timestamp"],
                 **body.get("data", {}),
