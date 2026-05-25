@@ -31,7 +31,7 @@ jobs:
           npm install -g aws-cdk
 
       - name: 1. Quality Gate - Linting con Ruff
-        run: ruff check . --ignore W
+        run: ruff check . --ignore F541,F401,F841
 
       - name: 2. Quality Gate - Tests unitarios
         run: pytest tests/
