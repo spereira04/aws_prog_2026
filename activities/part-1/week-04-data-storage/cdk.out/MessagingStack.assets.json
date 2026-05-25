@@ -1,0 +1,20 @@
+{
+  "version": "53.0.0",
+  "files": {
+    "133a496781c24ef09cb44e148b9dca19af5615a5195161abdbbb958e5c84550c": {
+      "displayName": "MessagingStack Template",
+      "source": {
+        "path": "MessagingStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-current_region-2e77f059": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}",
+          "objectKey": "133a496781c24ef09cb44e148b9dca19af5615a5195161abdbbb958e5c84550c.json",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-${AWS::Region}"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

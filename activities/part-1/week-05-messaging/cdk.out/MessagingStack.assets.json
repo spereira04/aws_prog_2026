@@ -1,0 +1,34 @@
+{
+  "version": "53.0.0",
+  "files": {
+    "f0600fbd6928a02745859a7589686b6027aad79bd3d7a22920c6f340367eb1a7": {
+      "displayName": "EventConsumer/Code",
+      "source": {
+        "path": "asset.f0600fbd6928a02745859a7589686b6027aad79bd3d7a22920c6f340367eb1a7",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "current_account-current_region-b4a9b80c": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}",
+          "objectKey": "f0600fbd6928a02745859a7589686b6027aad79bd3d7a22920c6f340367eb1a7.zip",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-${AWS::Region}"
+        }
+      }
+    },
+    "c7529308a0d177c277baf63ec596a1744354a39be802ba5789b4fb66423b3277": {
+      "displayName": "MessagingStack Template",
+      "source": {
+        "path": "MessagingStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-current_region-f416e988": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}",
+          "objectKey": "c7529308a0d177c277baf63ec596a1744354a39be802ba5789b4fb66423b3277.json",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-${AWS::Region}"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}
