@@ -1,0 +1,49 @@
+name: CD Pipeline (Manual Deploy)
+
+on:
+  workflow_dispatch:
+    inputs:
+      entorno:
+        description: 'Selecciona el entorno a desplegar'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Esto habilita la protección de entornos de GitHub (Environment Protection)
+    environment: ${{ inputs.entorno }} 
+    
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python y Node
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements.txt
+          npm install -g aws-cdk
+
+      - name: Configurar Credenciales de AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # Estas credenciales deben configurarse en los "Secrets" de tu repositorio de GitHub
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # AWS Academy suele usar us-east-1, cambialo si es necesario
+          aws-region: us-east-1 
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} # Crucial si usas AWS Academy (credenciales temporales)
+
+      - name: Desplegar infraestructura con CDK
+        run: cdk deploy --require-approval never
