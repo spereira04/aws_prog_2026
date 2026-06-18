@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 2s
+  evaluation_interval: 2s
+
+
+scrape_configs:
+  - job_name: 'telemetry-consumer'
+    static_configs:
+      - targets: ['telemetry-consumer.f1-sim.local:8000']

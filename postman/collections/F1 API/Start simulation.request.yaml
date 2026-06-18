@@ -1,6 +1,6 @@
 $kind: http-request
-name: Data Ingestion
-url: "{{baseUrl}}/data-ingestion?session_key=9165"
+name: Start simulation
+url: "{{baseUrl}}/simulation/start?session_key=9165"
 method: POST
 headers:
   - key: Host
@@ -8,4 +8,4 @@ headers:
     disabled: true
 queryParams:
   session_key: "9165"
-order: 5000
+order: 3105447032509512
