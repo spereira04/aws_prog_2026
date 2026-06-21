@@ -1,18 +1,20 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Session Functions
+Description: F1 Data Ingestion and Simulation Platform
 
 Parameters:
   Environment:
     Type: String
-    Default: "default"
-    AllowedValues:
-      - prod
-      - dev
-      - default
+    Default: "dev"
   OpenF1BaseUrl:
     Type: String
     Default: "https://api.openf1.org/v1"
+  BastionKeyName:
+    Type: String
+    Description: "Name of the EC2 KeyPair for SSH access"
+  BastionAMI:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-arm64'
 
 Globals:
   Function:
@@ -21,6 +23,7 @@ Globals:
     MemorySize: 256
 
 Resources:
+  # --- Core API ---
   F1ApiGateway:
     Type: AWS::Serverless::Api
     Properties:
@@ -31,6 +34,7 @@ Resources:
         AllowHeaders: "'Content-Type,Authorization'"
         AllowOrigin: "'*'"
 
+  # --- Data Ingestion Lambdas ---
   TriggerIngestion:
     Type: AWS::Serverless::Function
     Properties:
@@ -43,8 +47,6 @@ Resources:
       Environment:
         Variables:
           RAW_DATA_INGESTION_FUNCTION: !Ref RawDataIngestion
-      Timeout: 10
-      MemorySize: 128
       Events:
         DataIngest:
           Type: Api
@@ -71,11 +73,6 @@ Resources:
       Timeout: 300
       MemorySize: 512
 
-  RawDataBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub "raw-data-bucket-${Environment}"
-
   ProcessSession:
     Type: AWS::Serverless::Function
     Properties:
@@ -85,6 +82,8 @@ Resources:
         - AWSLambdaBasicExecutionRole
         - S3CrudPolicy:
             BucketName: !Ref RawDataBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OpenF1Table
       Environment:
         Variables:
           S3_BUCKET: !Ref RawDataBucket
@@ -95,14 +94,19 @@ Resources:
           Type: EventBridgeRule
           Properties:
             Pattern:
-              source:
-                - process.data.ingest
-              detail-type:
-                - json.ingested
+              source: [process.data.ingest]
+              detail-type: [json.ingested]
+
+  # --- Data Storage ---
+  RawDataBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub "raw-data-bucket-${Environment}-${AWS::AccountId}"
 
   OpenF1Table:
     Type: AWS::DynamoDB::Table
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Properties:
       TableName: !Sub "f1-sessions-data-${Environment}"
       BillingMode: PAY_PER_REQUEST
@@ -117,6 +121,7 @@ Resources:
         - AttributeName: SK
           KeyType: RANGE
 
+  # --- Telemetry Retrieval Lambdas ---
   ListAvailableSessions:
     Type: AWS::Serverless::Function
     Properties:
@@ -124,11 +129,11 @@ Resources:
       CodeUri: ./lambda/sessions
       Policies:
         - AWSLambdaBasicExecutionRole
+        - DynamoDBReadPolicy:
+            TableName: !Ref OpenF1Table
       Environment:
         Variables:
           DYNAMODB_TABLE: !Ref OpenF1Table
-      Timeout: 10
-      MemorySize: 128
       Events:
         ListAvailableSessions:
           Type: Api
@@ -144,11 +149,11 @@ Resources:
       CodeUri: ./lambda/drivers
       Policies:
         - AWSLambdaBasicExecutionRole
+        - DynamoDBReadPolicy:
+            TableName: !Ref OpenF1Table
       Environment:
         Variables:
           DYNAMODB_TABLE: !Ref OpenF1Table
-      Timeout: 10
-      MemorySize: 128
       Events:
         ListAvailableSessions:
           Type: Api
@@ -164,11 +169,11 @@ Resources:
       CodeUri: ./lambda/drivers
       Policies:
         - AWSLambdaBasicExecutionRole
+        - DynamoDBReadPolicy:
+            TableName: !Ref OpenF1Table
       Environment:
         Variables:
           DYNAMODB_TABLE: !Ref OpenF1Table
-      Timeout: 10
-      MemorySize: 128
       Events:
         ListAvailableSessions:
           Type: Api
@@ -184,11 +189,11 @@ Resources:
       CodeUri: ./lambda/drivers
       Policies:
         - AWSLambdaBasicExecutionRole
+        - DynamoDBReadPolicy:
+            TableName: !Ref OpenF1Table
       Environment:
         Variables:
           DYNAMODB_TABLE: !Ref OpenF1Table
-      Timeout: 10
-      MemorySize: 128
       Events:
         ListAvailableSessions:
           Type: Api
@@ -196,3 +201,411 @@ Resources:
             RestApiId: !Ref F1ApiGateway
             Path: /sessions/driverLap
             Method: GET
+
+  # --- Simulation Orchestrator ---
+  StartSimulationLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: simulation_orchestrator.handler
+      CodeUri: ./lambda/simulation-engine
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - AmazonECS_FullAccess
+        - Statement:
+          - Effect: Allow
+            Action: 'iam:PassRole'
+            Resource: ["*"]
+      Environment:
+        Variables:
+          ECS_CLUSTER_NAME: !Ref F1SimulationCluster
+          ECS_TASK_DEFINITION: !Ref F1SimulationTaskDefinition
+          VPC_SUBNETS: !Join [",", [!Ref F1PrivateSubnet1, !Ref F1PrivateSubnet2]]
+          SECURITY_GROUP_ID: !Ref F1FargateSecurityGroup
+      Events:
+        StartSimApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref F1ApiGateway
+            Path: /simulation/start
+            Method: POST
+
+  # --- ECS Infrastructure ---
+  F1SimulationCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "f1-simulation-cluster-${Environment}"
+
+  F1SimulationTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "f1-simulator-task-${Environment}"
+      RequiresCompatibilities: [FARGATE]
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RuntimePlatform: {CpuArchitecture: ARM64, OperatingSystemFamily: LINUX}
+      ExecutionRoleArn: !GetAtt F1FargateTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt F1FargateTaskRole.Arn
+      ContainerDefinitions:
+        - Name: "f1-simulator"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/f1-simulation-engine:latest"
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref F1SimulationLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: f1-sim
+          Environment:
+            - Name: SQS_QUEUE_URL
+              Value: !Ref F1TelemetryQueue
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: DYNAMODB_TABLE
+              Value: !Ref OpenF1Table
+
+  F1SimulationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/ecs/f1-simulation-${Environment}"
+      RetentionInDays: 7
+
+  F1FargateTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [ecs-tasks.amazonaws.com] }
+            Action: ['sts:AssumeRole']
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  F1FargateTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [ecs-tasks.amazonaws.com] }
+            Action: ['sts:AssumeRole']
+      Policies:
+        - PolicyName: FargateTelemetryPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ['dynamodb:Query', 'dynamodb:GetItem', 'dynamodb:Scan']
+                Resource: !GetAtt OpenF1Table.Arn
+              - Effect: Allow
+                Action: ['sqs:SendMessage', 'sqs:ReceiveMessage', 'sqs:DeleteMessage', 'sqs:GetQueueAttributes']
+                Resource: !GetAtt F1TelemetryQueue.Arn
+
+  # --- Networking (Private with Bastion) ---
+  F1SimulationVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+  F1InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  F1VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref F1SimulationVPC
+      InternetGatewayId: !Ref F1InternetGateway
+
+  F1PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref F1SimulationVPC
+      CidrBlock: 10.0.10.0/24
+      AvailabilityZone: !Select [ 0, !GetAZs "" ]
+      MapPublicIpOnLaunch: true
+
+  F1PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref F1SimulationVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [ 0, !GetAZs "" ]
+
+  F1PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref F1SimulationVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [ 1, !GetAZs "" ]
+
+  F1PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: {VpcId: !Ref F1SimulationVPC}
+
+  F1DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: F1VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref F1PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref F1InternetGateway
+
+  F1PubSubnet1Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref F1PublicSubnet1
+      RouteTableId: !Ref F1PublicRouteTable
+
+  F1PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: {VpcId: !Ref F1SimulationVPC}
+
+  F1PrivSubnet1Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref F1PrivateSubnet1, RouteTableId: !Ref F1PrivateRouteTable}
+
+  F1PrivSubnet2Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref F1PrivateSubnet2, RouteTableId: !Ref F1PrivateRouteTable}
+
+  # --- VPC Endpoints (Internal Access) ---
+  S3VPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      VpcId: !Ref F1SimulationVPC
+      VpcEndpointType: Gateway
+      RouteTableIds: [!Ref F1PrivateRouteTable]
+
+  DynamoDBVPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.dynamodb"
+      VpcId: !Ref F1SimulationVPC
+      VpcEndpointType: Gateway
+      RouteTableIds: [!Ref F1PrivateRouteTable]
+
+  InterfaceEndpoints:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.sqs"
+      VpcId: !Ref F1SimulationVPC
+      VpcEndpointType: Interface
+      SubnetIds: [!Ref F1PrivateSubnet1, !Ref F1PrivateSubnet2]
+      SecurityGroupIds: [!Ref F1FargateSecurityGroup]
+      PrivateDnsEnabled: true
+
+  ECRVPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ecr.api"
+      VpcId: !Ref F1SimulationVPC
+      VpcEndpointType: Interface
+      SubnetIds: [!Ref F1PrivateSubnet1, !Ref F1PrivateSubnet2]
+      SecurityGroupIds: [!Ref F1FargateSecurityGroup]
+      PrivateDnsEnabled: true
+
+  ECRDKRVPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ecr.dkr"
+      VpcId: !Ref F1SimulationVPC
+      VpcEndpointType: Interface
+      SubnetIds: [!Ref F1PrivateSubnet1, !Ref F1PrivateSubnet2]
+      SecurityGroupIds: [!Ref F1FargateSecurityGroup]
+      PrivateDnsEnabled: true
+
+  LogsVPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.logs"
+      VpcId: !Ref F1SimulationVPC
+      VpcEndpointType: Interface
+      SubnetIds: [!Ref F1PrivateSubnet1, !Ref F1PrivateSubnet2]
+      SecurityGroupIds: [!Ref F1FargateSecurityGroup]
+      PrivateDnsEnabled: true
+
+  # --- Messaging ---
+  F1TelemetryQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "f1-telemetry-queue-${Environment}.fifo"
+      FifoQueue: true
+      ContentBasedDeduplication: false
+      VisibilityTimeout: 60
+
+  # --- Security Groups ---
+  F1FargateSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security Group for Fargate Tasks"
+      VpcId: !Ref F1SimulationVPC
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 8000, ToPort: 8000, CidrIp: 10.0.0.0/16}
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 10.0.0.0/16}
+      SecurityGroupEgress: [{IpProtocol: -1, CidrIp: 0.0.0.0/0}]
+
+  BastionSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Allow SSH into Bastion"
+      VpcId: !Ref F1SimulationVPC
+      SecurityGroupIngress: [{IpProtocol: tcp, FromPort: 22, ToPort: 22, CidrIp: 0.0.0.0/0}]
+
+  MonitoringSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security Group for Prometheus and Grafana"
+      VpcId: !Ref F1SimulationVPC
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 9090, ToPort: 9090, CidrIp: 10.0.0.0/16}
+        - {IpProtocol: tcp, FromPort: 8000, ToPort: 8000, CidrIp: 10.0.0.0/16} # Allow scraping consumer
+        - {IpProtocol: tcp, FromPort: 3000, ToPort: 3000, CidrIp: 10.0.0.0/16}
+        - {IpProtocol: tcp, FromPort: 3000, ToPort: 3000, SourceSecurityGroupId: !Ref BastionSecurityGroup}
+
+  # --- Monitoring Services ---
+  F1ServiceNamespace:
+    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
+    Properties: {Name: f1-sim.local, Vpc: !Ref F1SimulationVPC}
+
+  ConsumerServiceDiscovery:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Name: telemetry-consumer
+      DnsConfig: {DnsRecords: [{Type: A, TTL: 60}], NamespaceId: !Ref F1ServiceNamespace}
+
+  PrometheusServiceDiscovery:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Name: prometheus
+      DnsConfig: {DnsRecords: [{Type: A, TTL: 60}], NamespaceId: !Ref F1ServiceNamespace}
+
+  TelemetryConsumerService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref F1SimulationCluster
+      LaunchType: FARGATE
+      DesiredCount: 1
+      TaskDefinition: !Ref TelemetryConsumerTaskDefinition
+      ServiceRegistries: [{RegistryArn: !GetAtt ConsumerServiceDiscovery.Arn}]
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets: [!Ref F1PrivateSubnet1, !Ref F1PrivateSubnet2]
+          SecurityGroups: [!Ref MonitoringSecurityGroup]
+          AssignPublicIp: DISABLED
+
+  TelemetryConsumerTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "telemetry-consumer-${Environment}"
+      RequiresCompatibilities: [FARGATE]
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RuntimePlatform: {CpuArchitecture: ARM64, OperatingSystemFamily: LINUX}
+      ExecutionRoleArn: !GetAtt F1FargateTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt F1FargateTaskRole.Arn
+      ContainerDefinitions:
+        - Name: consumer
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/f1-telemetry-consumer:latest"
+          PortMappings: [{ContainerPort: 8000}]
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref F1SimulationLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: consumer
+          Environment:
+            - Name: SQS_QUEUE_URL
+              Value: !Ref F1TelemetryQueue
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+
+  PrometheusService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref F1SimulationCluster
+      LaunchType: FARGATE
+      DesiredCount: 1
+      TaskDefinition: !Ref PrometheusTaskDefinition
+      ServiceRegistries: [{RegistryArn: !GetAtt PrometheusServiceDiscovery.Arn}]
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets: [!Ref F1PrivateSubnet1, !Ref F1PrivateSubnet2]
+          SecurityGroups: [!Ref MonitoringSecurityGroup]
+          AssignPublicIp: DISABLED
+
+  PrometheusTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "prometheus-${Environment}"
+      RequiresCompatibilities: [FARGATE]
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RuntimePlatform: {CpuArchitecture: ARM64, OperatingSystemFamily: LINUX}
+      ExecutionRoleArn: !GetAtt F1FargateTaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: prometheus
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/f1-prometheus:latest"
+          PortMappings: [{ContainerPort: 9090}]
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref F1SimulationLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: prometheus
+
+  GrafanaService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref F1SimulationCluster
+      LaunchType: FARGATE
+      DesiredCount: 1
+      TaskDefinition: !Ref GrafanaTaskDefinition
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets: [!Ref F1PrivateSubnet1, !Ref F1PrivateSubnet2]
+          SecurityGroups: [!Ref MonitoringSecurityGroup]
+          AssignPublicIp: DISABLED
+
+  GrafanaTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "grafana-${Environment}"
+      RequiresCompatibilities: [FARGATE]
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RuntimePlatform: {CpuArchitecture: X86_64, OperatingSystemFamily: LINUX}
+      ExecutionRoleArn: !GetAtt F1FargateTaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: grafana
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/f1-grafana:latest"
+          PortMappings: [{ContainerPort: 3000}]
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref F1SimulationLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: grafana
+
+  # --- Bastion Host ---
+  BastionHost:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t4g.nano
+      ImageId: !Ref BastionAMI
+      KeyName: !Ref BastionKeyName
+      NetworkInterfaces:
+        - {AssociatePublicIpAddress: true, DeviceIndex: 0, SubnetId: !Ref F1PublicSubnet1, GroupSet: [!Ref BastionSecurityGroup]}
+
+Outputs:
+  F1ApiUrl:
+    Value: !Sub "https://${F1ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/"
+  BastionPublicIP:
+    Value: !GetAtt BastionHost.PublicIp

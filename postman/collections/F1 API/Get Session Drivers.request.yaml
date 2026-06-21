@@ -1,14 +1,11 @@
 $kind: http-request
 name: Get Session Drivers
-url: "{{baseUrl}}/{{stage}}/sessions/drivers?session_key=9165"
+url: "{{baseUrl}}/sessions/drivers?session_key=9165"
 method: GET
 headers:
-  Host: "{{RAPI}}.execute-api.amazonaws.com"
+  - key: Host
+    value: "{{RAPI}}.execute-api.amazonaws.com"
+    disabled: true
 queryParams:
-  - key: session_key
-    value: "9165"
-    $type: ""
-body:
-  type: json
-  content: ""
+  session_key: "9165"
 order: 193792830346861
