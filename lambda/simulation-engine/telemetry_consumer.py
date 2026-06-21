@@ -3,6 +3,7 @@ import json
 import boto3
 import sys
 import logging
+from datetime import datetime
 from prometheus_client import start_http_server, Gauge
 
 # 1. Configuration
@@ -25,6 +26,7 @@ logger = logging.getLogger("telemetry-consumer")
 DRIVER_POSITION = Gauge('f1_driver_position', 'Current position', ['driver_number', 'driver_name', 'session_key'])
 DRIVER_SPEED = Gauge('f1_driver_speed_kmh', 'Current speed', ['driver_number', 'driver_name', 'session_key'])
 DRIVER_LAP = Gauge('f1_driver_lap_number', 'Current lap number', ['driver_number', 'driver_name', 'session_key'])
+DRIVER_RACE_TIME = Gauge('f1_driver_race_time_seconds', 'Simulated race timestamp (Unix Epoch seconds)', ['driver_number', 'driver_name', 'session_key'])
 
 def process_messages():
     """Poll SQS and update Prometheus metrics."""
@@ -62,6 +64,19 @@ def process_messages():
                         driver_name=data['driver_name'],
                         session_key=data['session_key']
                     ).set(data['lap_number'])
+
+                    # Parse simulated race time to epoch timestamp
+                    date_start = data.get('date_start')
+                    if date_start:
+                        try:
+                            dt = datetime.fromisoformat(date_start.replace("Z", "+00:00"))
+                            DRIVER_RACE_TIME.labels(
+                                driver_number=data['driver_number'],
+                                driver_name=data['driver_name'],
+                                session_key=data['session_key']
+                            ).set(dt.timestamp())
+                        except Exception as parse_err:
+                            logger.error(f"Error parsing date_start {date_start}: {parse_err}")
 
                     # Delete message from queue
                     sqs.delete_message(

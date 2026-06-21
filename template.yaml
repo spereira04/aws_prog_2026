@@ -100,13 +100,13 @@ Resources:
   # --- Data Storage ---
   RawDataBucket:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Properties:
       BucketName: !Sub "raw-data-bucket-${Environment}-${AWS::AccountId}"
 
   OpenF1Table:
     Type: AWS::DynamoDB::Table
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Properties:
       TableName: !Sub "f1-sessions-data-${Environment}"
       BillingMode: PAY_PER_REQUEST
@@ -478,6 +478,12 @@ Resources:
       Name: telemetry-consumer
       DnsConfig: {DnsRecords: [{Type: A, TTL: 60}], NamespaceId: !Ref F1ServiceNamespace}
 
+  PrometheusServiceDiscovery:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      Name: prometheus
+      DnsConfig: {DnsRecords: [{Type: A, TTL: 60}], NamespaceId: !Ref F1ServiceNamespace}
+
   TelemetryConsumerService:
     Type: AWS::ECS::Service
     Properties:
@@ -526,6 +532,7 @@ Resources:
       LaunchType: FARGATE
       DesiredCount: 1
       TaskDefinition: !Ref PrometheusTaskDefinition
+      ServiceRegistries: [{RegistryArn: !GetAtt PrometheusServiceDiscovery.Arn}]
       NetworkConfiguration:
         AwsvpcConfiguration:
           Subnets: [!Ref F1PrivateSubnet1, !Ref F1PrivateSubnet2]
@@ -574,7 +581,7 @@ Resources:
       Cpu: "256"
       Memory: "512"
       NetworkMode: awsvpc
-      RuntimePlatform: {CpuArchitecture: ARM64, OperatingSystemFamily: LINUX}
+      RuntimePlatform: {CpuArchitecture: X86_64, OperatingSystemFamily: LINUX}
       ExecutionRoleArn: !GetAtt F1FargateTaskExecutionRole.Arn
       ContainerDefinitions:
         - Name: grafana

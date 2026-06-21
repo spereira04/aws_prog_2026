@@ -1,11 +1,15 @@
 $kind: http-request
 name: Start simulation
-url: "{{baseUrl}}/simulation/start?session_key=9165"
+url: "{{baseUrl}}/simulation/start"
 method: POST
 headers:
   - key: Host
     value: "{{RAPI}}.execute-api.amazonaws.com"
     disabled: true
-queryParams:
-  session_key: "9165"
+body:
+  type: json
+  content: |-
+    {
+        "session_key": 9165
+    }
 order: 3105447032509512

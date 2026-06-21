@@ -76,7 +76,8 @@ def main():
                         "driver_name": str(d.get('last_name', d_num)),
                         "lap_number": int(current_lap.get('lap_number', 0)),
                         "position": int(current_lap.get('position', 0)),
-                        "speed_kmh": float(current_lap.get('i1_speed', 0))
+                        "speed_kmh": float(current_lap.get('i1_speed', 0)),
+                        "date_start": str(current_lap.get('date_start', ''))
                     }
 
                     sqs.send_message(
