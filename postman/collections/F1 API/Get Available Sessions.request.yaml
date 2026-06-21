@@ -1,7 +1,9 @@
 $kind: http-request
 name: Get Available Sessions
-url: "{{baseUrl}}/{{stage}}/sessions"
+url: "{{baseUrl}}/sessions"
 method: GET
 headers:
-  Host: "{{RAPI}}.execute-api.amazonaws.com"
+  - key: Host
+    value: "{{RAPI}}.execute-api.amazonaws.com"
+    disabled: true
 order: 2165

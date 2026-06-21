@@ -23,7 +23,7 @@ def handler(event, context):
     try:
         query_kwargs = {
             "KeyConditionExpression": (Key("PK").eq(f"SESSION#{session_key}") &
-        Key("SK").begins_with(f"#METADATA#DRIVER#"))
+        Key("SK").begins_with("#METADATA#DRIVER#"))
         }
 
         while True:
@@ -58,4 +58,3 @@ def response(status, body):
         },
         "body": json.dumps(body, default=int)
     }
-

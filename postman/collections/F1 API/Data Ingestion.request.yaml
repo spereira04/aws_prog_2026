@@ -1,9 +1,11 @@
 $kind: http-request
 name: Data Ingestion
-url: "{{baseUrl}}/{{stage}}/data-ingestion?session_key=9165"
+url: "{{baseUrl}}/data-ingestion?session_key=9165"
 method: POST
 headers:
-  Host: "{{RAPI}}.execute-api.amazonaws.com"
+  - key: Host
+    value: "{{RAPI}}.execute-api.amazonaws.com"
+    disabled: true
 queryParams:
   session_key: "9165"
 order: 5000
