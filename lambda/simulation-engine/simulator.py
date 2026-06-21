@@ -5,7 +5,6 @@ import sys
 import logging
 import uuid
 import time
-from decimal import Decimal
 
 # 1. Configuration
 SQS_QUEUE_URL = os.environ.get("SQS_QUEUE_URL")
@@ -30,7 +29,7 @@ def get_session_drivers(session_key):
     """Fetch driver metadata."""
     logger.info(f"Fetching drivers for session: {session_key}")
     response = table.query(
-        KeyConditionExpression=boto3.dynamodb.conditions.Key('PK').eq(f"SESSION#{session_key}") & 
+        KeyConditionExpression=boto3.dynamodb.conditions.Key('PK').eq(f"SESSION#{session_key}") &
                                boto3.dynamodb.conditions.Key('SK').begins_with("#METADATA#DRIVER#")
     )
     return response.get('Items', [])
@@ -38,7 +37,7 @@ def get_session_drivers(session_key):
 def get_driver_lap_data(session_key, driver_number):
     """Fetch lap data."""
     response = table.query(
-        KeyConditionExpression=boto3.dynamodb.conditions.Key('PK').eq(f"SESSION#{session_key}") & 
+        KeyConditionExpression=boto3.dynamodb.conditions.Key('PK').eq(f"SESSION#{session_key}") &
                                boto3.dynamodb.conditions.Key('SK').begins_with(f"DRIVER#{driver_number}#LAP#")
     )
     items = response.get('Items', [])
@@ -57,7 +56,7 @@ def main():
 
     driver_laps = {str(d['driver_number']): get_driver_lap_data(SESSION_KEY, d['driver_number']) for d in drivers}
     max_session_laps = max([len(laps) for laps in driver_laps.values()])
-    
+
     logger.info(f"🏎️ Replaying Session {SESSION_KEY} via SQS. Max Laps: {max_session_laps}")
 
     try:
@@ -65,10 +64,10 @@ def main():
             for d in drivers:
                 d_num = str(d['driver_number'])
                 laps = driver_laps[d_num]
-                
+
                 if lap_idx < len(laps):
                     current_lap = laps[lap_idx]
-                    
+
                     # Explicit conversion to avoid ANY Decimal objects
                     telemetry = {
                         "session_key": str(SESSION_KEY),

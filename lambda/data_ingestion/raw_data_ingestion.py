@@ -108,7 +108,7 @@ def ingest_sessions(session_key):
             "headers": HEADERS
         }
 
-    sessions = fetch(BASE_URL+f"/sessions", params={"session_key": session_key})
+    sessions = fetch(BASE_URL+"/sessions", params={"session_key": session_key})
 
     # response = requests.get(BASE_URL+f"/sessions", params={"session_key": session_key})
     # response.raise_for_status()

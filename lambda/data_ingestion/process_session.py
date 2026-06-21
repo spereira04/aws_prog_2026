@@ -49,7 +49,7 @@ def handler(event, context):
     items = []
 
     session = read_s3(f"sessions/{session_key}/session.json")
-    items.append({"PK": f"SESSION", "SK": f"SESSION#{session_key}", **session})
+    items.append({"PK": "SESSION", "SK": f"SESSION#{session_key}", **session})
 
     for driver in drivers:
         driver_number = str(driver["driver_number"])
