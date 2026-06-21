@@ -9,12 +9,6 @@ Parameters:
   OpenF1BaseUrl:
     Type: String
     Default: "https://api.openf1.org/v1"
-  BastionKeyName:
-    Type: String
-    Description: "Name of the EC2 KeyPair for SSH access"
-  BastionAMI:
-    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-minimal-kernel-default-arm64'
 
 Globals:
   Function:
@@ -328,6 +322,14 @@ Resources:
       AvailabilityZone: !Select [ 0, !GetAZs "" ]
       MapPublicIpOnLaunch: true
 
+  F1PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref F1SimulationVPC
+      CidrBlock: 10.0.20.0/24
+      AvailabilityZone: !Select [ 1, !GetAZs "" ]
+      MapPublicIpOnLaunch: true
+
   F1PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -358,6 +360,12 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref F1PublicSubnet1
+      RouteTableId: !Ref F1PublicRouteTable
+
+  F1PubSubnet2Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref F1PublicSubnet2
       RouteTableId: !Ref F1PublicRouteTable
 
   F1PrivateRouteTable:
@@ -449,12 +457,16 @@ Resources:
         - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 10.0.0.0/16}
       SecurityGroupEgress: [{IpProtocol: -1, CidrIp: 0.0.0.0/0}]
 
-  BastionSecurityGroup:
+  F1LBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: "Allow SSH into Bastion"
+      GroupDescription: "Security Group for public Application Load Balancer"
       VpcId: !Ref F1SimulationVPC
-      SecurityGroupIngress: [{IpProtocol: tcp, FromPort: 22, ToPort: 22, CidrIp: 0.0.0.0/0}]
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
 
   MonitoringSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -465,7 +477,7 @@ Resources:
         - {IpProtocol: tcp, FromPort: 9090, ToPort: 9090, CidrIp: 10.0.0.0/16}
         - {IpProtocol: tcp, FromPort: 8000, ToPort: 8000, CidrIp: 10.0.0.0/16} # Allow scraping consumer
         - {IpProtocol: tcp, FromPort: 3000, ToPort: 3000, CidrIp: 10.0.0.0/16}
-        - {IpProtocol: tcp, FromPort: 3000, ToPort: 3000, SourceSecurityGroupId: !Ref BastionSecurityGroup}
+        - {IpProtocol: tcp, FromPort: 3000, ToPort: 3000, SourceSecurityGroupId: !Ref F1LBSecurityGroup}
 
   # --- Monitoring Services ---
   F1ServiceNamespace:
@@ -562,11 +574,16 @@ Resources:
 
   GrafanaService:
     Type: AWS::ECS::Service
+    DependsOn: GrafanaListener
     Properties:
       Cluster: !Ref F1SimulationCluster
       LaunchType: FARGATE
       DesiredCount: 1
       TaskDefinition: !Ref GrafanaTaskDefinition
+      LoadBalancers:
+        - ContainerName: grafana
+          ContainerPort: 3000
+          TargetGroupArn: !Ref GrafanaTargetGroup
       NetworkConfiguration:
         AwsvpcConfiguration:
           Subnets: [!Ref F1PrivateSubnet1, !Ref F1PrivateSubnet2]
@@ -594,18 +611,41 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: grafana
 
-  # --- Bastion Host ---
-  BastionHost:
-    Type: AWS::EC2::Instance
+  # --- Public Load Balancer ---
+  F1LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      InstanceType: t4g.nano
-      ImageId: !Ref BastionAMI
-      KeyName: !Ref BastionKeyName
-      NetworkInterfaces:
-        - {AssociatePublicIpAddress: true, DeviceIndex: 0, SubnetId: !Ref F1PublicSubnet1, GroupSet: [!Ref BastionSecurityGroup]}
+      Name: !Sub "f1-alb-${Environment}"
+      Scheme: internet-facing
+      SecurityGroups: [!Ref F1LBSecurityGroup]
+      Subnets: [!Ref F1PublicSubnet1, !Ref F1PublicSubnet2]
+      Type: application
+
+  GrafanaTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub "grafana-tg-${Environment}"
+      Port: 3000
+      Protocol: HTTP
+      VpcId: !Ref F1SimulationVPC
+      TargetType: ip
+      HealthCheckPath: /login
+      HealthCheckIntervalSeconds: 30
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+
+  GrafanaListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref F1LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref GrafanaTargetGroup
 
 Outputs:
   F1ApiUrl:
     Value: !Sub "https://${F1ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/"
-  BastionPublicIP:
-    Value: !GetAtt BastionHost.PublicIp
+  GrafanaUrl:
+    Value: !Sub "http://${F1LoadBalancer.DNSName}/"
